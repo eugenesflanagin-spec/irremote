@@ -1,0 +1,33 @@
+{
+  "format": "irremote-layout",
+  "version": 1,
+  "id": "onn-4k-pro-google-tv",
+  "name": "Android TV box remote - onn. 4K Pro (Google TV)",
+  "description": "Google TV style remote for the onn. Google TV 4K Pro Streaming Device (2025), also sold as a replacement (TCNOUMT). Most buttons talk to the box over Bluetooth; usually only the TV buttons (Power, Volume, Mute, Input) are infrared.",
+  "width": 100,
+  "height": 361,
+  "learn_first": ["Power", "Volume Up", "Volume Down", "Mute"],
+  "body": {"x": 0, "y": 0, "w": 100, "h": 361, "radius": 20, "color": "#2e343e"},
+  "decorations": [
+    {"type": "dot", "x": 50, "y": 28.5, "r": 0.9, "color": "#11151a"}
+  ],
+  "buttons": [
+    {"shape": "circle", "name": "Power", "x": 19.6, "y": 20, "r": 9.2, "icon": "power", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Star", "x": 80.4, "y": 20, "r": 9.2, "icon": "star", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Profile", "x": 21.7, "y": 58.3, "r": 10.4, "icon": "profile", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Assistant", "x": 50, "y": 51.3, "r": 11.3, "icon": "mic", "color": "#f1f1f1", "text_color": "#3d7be0"},
+    {"shape": "circle", "name": "Settings", "x": 78.3, "y": 58.3, "r": 10.4, "icon": "settings", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "dpad", "x": 50, "y": 107.5, "r": 40.4, "inner": 17, "color": "#eeeeee", "ok_color": "#22262d", "glyph_color": "#a4a9b0", "text_color": "#8d939b",
+     "names": {"up": "Up", "down": "Down", "left": "Left", "right": "Right", "ok": "OK"}},
+    {"shape": "circle", "name": "Back", "x": 21.7, "y": 156.3, "r": 10.8, "icon": "back", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Home", "x": 50, "y": 163.3, "r": 10.8, "icon": "home", "color": "#f1f1f1", "text_color": "#4b525d"},
+    {"shape": "circle", "name": "Live TV", "x": 78.3, "y": 156.3, "r": 10.8, "icon": "tv", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "rocker", "x": 20.4, "y": 208.3, "w": 21.7, "h": 53.3, "radius": 10, "names": {"top": "Volume Up", "bottom": "Volume Down"}, "icons": {"top": "plus", "bottom": "minus"}, "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Mute", "x": 50, "y": 207.5, "r": 9.2, "icon": "mute", "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "rocker", "x": 79.6, "y": 208.3, "w": 21.7, "h": 53.3, "radius": 10, "names": {"top": "Channel Up", "bottom": "Channel Down"}, "icons": {"top": "up", "bottom": "down"}, "color": "#4b525d", "text_color": "#f2f2f2"},
+    {"shape": "pill", "name": "YouTube", "x": 28, "y": 253.3, "w": 35.4, "h": 14.2, "label": "YouTube", "font": 4.6, "bold": true, "color": "#f4f4f4", "text_color": "#1f2a44"},
+    {"shape": "pill", "name": "Netflix", "x": 72, "y": 253.3, "w": 35.4, "h": 14.2, "label": "Netflix", "font": 4.6, "bold": true, "color": "#f4f4f4", "text_color": "#1f2a44"},
+    {"shape": "pill", "name": "Disney+", "x": 28, "y": 275, "w": 35.4, "h": 14.2, "label": "Disney+", "font": 4.6, "bold": true, "color": "#f4f4f4", "text_color": "#1f2a44"},
+    {"shape": "pill", "name": "Paramount+", "x": 72, "y": 275, "w": 35.4, "h": 14.2, "label": "Paramount+", "font": 4.2, "bold": true, "color": "#f4f4f4", "text_color": "#1f2a44"}
+  ]
+}

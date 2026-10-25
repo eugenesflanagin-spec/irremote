@@ -10,18 +10,18 @@ import sys
 import time
 
 from PyQt6.QtCore import QSettings, QSize, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence, QShortcut
+from PyQt6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon, QKeySequence, QShortcut
 from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import (
     QAbstractItemView, QApplication, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFormLayout, QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QKeySequenceEdit,
     QLabel, QListWidget, QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPlainTextEdit,
     QProgressBar, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QSplitter,
-    QStyle, QSystemTrayIcon, QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout,
-    QWidget,
+    QStackedWidget, QStyle, QSystemTrayIcon, QTableWidget, QTableWidgetItem, QToolButton,
+    QVBoxLayout, QWidget,
 )
 
-from . import __version__, core
+from . import __version__, core, layouts, visual
 
 README = "/usr/share/doc/irremote/README.md"
 TILE_W, TILE_H = 168, 92
@@ -55,7 +55,7 @@ class Worker(QThread):
 class LearnDialog(QDialog):
     TIMEOUT = 20
 
-    def __init__(self, parent, remote_name: str, button: dict | None):
+    def __init__(self, parent, remote_name: str, button: dict | None, fixed_name: str = ""):
         super().__init__(parent)
         self.setWindowTitle("Learn a button")
         self.setMinimumWidth(460)
@@ -74,8 +74,10 @@ class LearnDialog(QDialog):
         self.name.addItems(["Power", "Volume Up", "Volume Down", "Mute", "Input",
                             "Channel Up", "Channel Down", "OK", "Up", "Down", "Left",
                             "Right", "Back", "Home", "Menu", "Play/Pause"])
-        self.name.setCurrentText(button["name"] if button else "")
+        self.name.setCurrentText(fixed_name or (button["name"] if button else ""))
         self.name.lineEdit().setPlaceholderText("Button name, e.g. Power")
+        if fixed_name:      # a button on the picture: its name is its place
+            self.name.setEnabled(False)
         form.addRow("Button name:", self.name)
         lay.addLayout(form)
 
@@ -367,6 +369,42 @@ class ShortcutsDialog(QDialog):
         lay.addWidget(bb)
 
 
+class AssignShortcutDialog(QDialog):
+    """Just the global shortcut of one button (right-click on the picture)."""
+
+    def __init__(self, parent, remote_name: str, button_name: str, current: str):
+        super().__init__(parent)
+        self.setWindowTitle("Assign shortcut")
+        self.remote_name, self.button_name = remote_name, button_name
+        lay = QVBoxLayout(self)
+        lay.addWidget(QLabel(f"Global shortcut for <b>{_esc(remote_name)} / "
+                             f"{_esc(button_name)}</b>.<br>It works anywhere in Plasma, "
+                             "even with IR Remote closed."))
+        self.key = QKeySequenceEdit(QKeySequence(current))
+        self.key.setMaximumSequenceLength(1)
+        lay.addWidget(ButtonDialog._with_clear(self.key))
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Save |
+                              QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def value(self) -> str:
+        return self.key.keySequence().toString(QKeySequence.SequenceFormat.PortableText)
+
+    def accept(self):
+        key = self.value()
+        if key:
+            from . import shortcuts
+            clash = shortcuts.conflict(key, self.remote_name, self.button_name)
+            if clash and QMessageBox.question(
+                    self, "Shortcut in use",
+                    f"{key} is already used by {clash}.\nUse it for this button anyway?"
+            ) != QMessageBox.StandardButton.Yes:
+                return
+        super().accept()
+
+
 # --- Main window ---------------------------------------------------------------
 
 class MainWindow(QMainWindow):
@@ -380,6 +418,7 @@ class MainWindow(QMainWindow):
         self.busy = False
         self.quitting = False
         self.columns = 4
+        self.view = "grid" if self.settings.value("view", "picture") == "grid" else "picture"
 
         try:
             self.data = core.load()
@@ -424,8 +463,25 @@ class MainWindow(QMainWindow):
 
         right = QWidget()
         rv = QVBoxLayout(right)
+        head = QHBoxLayout()
         self.remote_title = QLabel()
-        rv.addWidget(self.remote_title)
+        head.addWidget(self.remote_title, 1)
+        self.learn_all_btn = QPushButton(icon("media-record"), "Learn all…")
+        self.learn_all_btn.setToolTip("Go through every button on the picture, one by one")
+        self.learn_all_btn.clicked.connect(self.learn_all)
+        head.addWidget(self.learn_all_btn, 0, Qt.AlignmentFlag.AlignBottom)
+        self.view_btns = {}
+        for mode, text, ic in (("picture", "Picture", "view-preview"),
+                               ("grid", "Grid", "view-grid")):
+            b = QToolButton(text=text, checkable=True, autoRaise=True)
+            b.setIcon(icon(ic))
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            b.clicked.connect(lambda _=False, m=mode: self.set_view(m))
+            head.addWidget(b, 0, Qt.AlignmentFlag.AlignBottom)
+            self.view_btns[mode] = b
+        rv.addLayout(head)
+        self.stack = QStackedWidget()
+        rv.addWidget(self.stack, 1)
         self.grid_host = QWidget()
         self.grid = QGridLayout(self.grid_host)
         self.grid.setSpacing(10)
@@ -434,9 +490,23 @@ class MainWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(self.grid_host)
-        rv.addWidget(scroll, 1)
-        tip = QLabel("Click a button to send it. Right-click for learn, edit, shortcut, "
-                     "move and delete. Grey buttons aren't learned yet - click to learn.")
+        self.stack.addWidget(scroll)
+
+        pic = QWidget()
+        ph = QHBoxLayout(pic)
+        ph.setContentsMargins(0, 0, 0, 0)
+        self.canvas = visual.RemoteCanvas(pic, mode="use")
+        self.canvas.pressed.connect(self.press_name)
+        self.canvas.menu_requested.connect(self._spot_menu)
+        ph.addWidget(self.canvas, 1)
+        self.extras = QWidget()
+        self.extras.setMaximumWidth(190)
+        self.extras_lay = QVBoxLayout(self.extras)
+        self.extras_lay.setContentsMargins(0, 0, 0, 0)
+        ph.addWidget(self.extras)
+        self.stack.addWidget(pic)
+
+        self.tip = tip = QLabel()
         tip.setWordWrap(True)
         tip.setEnabled(False)
         rv.addWidget(tip)
@@ -477,6 +547,13 @@ class MainWindow(QMainWindow):
 
         m = mb.addMenu("&Remote")
         self._act(m, "&Add remote…", self.add_remote, "list-add", "Ctrl+Shift+N")
+        self._act(m, "&Picture…", self.change_picture, "view-preview",
+                  tip="Show this remote as a picture of a real remote, or as a grid")
+        self.edit_photo_action = self._act(m, "&Buttons on my picture…", self.edit_photo,
+                                           "document-edit")
+        self.learn_all_action = self._act(m, "&Learn all buttons…", self.learn_all,
+                                          "media-record", "Ctrl+Shift+L")
+        m.addSeparator()
         self._act(m, "&Rename remote…", self.rename_remote, "edit-rename", "F2")
         self._act(m, "&Delete remote…", self.delete_remote, "edit-delete")
 
@@ -490,6 +567,16 @@ class MainWindow(QMainWindow):
                   tip="USB-reset the dongle if it stops answering")
 
         m = mb.addMenu("&View")
+        group = QActionGroup(self)
+        self.view_actions = {}
+        for mode, text, key in (("picture", "&Picture", "Ctrl+1"), ("grid", "&Grid", "Ctrl+2")):
+            a = QAction(text, self, checkable=True)
+            a.setShortcut(QKeySequence(key))
+            a.triggered.connect(lambda _=False, md=mode: self.set_view(md))
+            group.addAction(a)
+            m.addAction(a)
+            self.view_actions[mode] = a
+        m.addSeparator()
         self.tray_action = QAction("Show icon in system &tray", self, checkable=True)
         self.tray_action.setChecked(self.settings.value("tray", False, type=bool))
         self.tray_action.toggled.connect(self._toggle_tray)
@@ -570,6 +657,15 @@ class MainWindow(QMainWindow):
         self.refresh_buttons()
         self._rebuild_app_shortcuts()
 
+    def current_layout(self) -> dict | None:
+        r = self.current_remote()
+        return layouts.resolve(r) if r else None
+
+    def set_view(self, mode: str):
+        self.view = mode
+        self.settings.setValue("view", mode)
+        self.refresh_buttons()
+
     def refresh_buttons(self):
         while self.grid.count():
             w = self.grid.takeAt(0).widget()
@@ -577,12 +673,48 @@ class MainWindow(QMainWindow):
                 w.hide()
                 w.deleteLater()
         r = self.current_remote()
+        lay = layouts.resolve(r) if r else None
+        picture = lay is not None and self.view == "picture"
+        for mode, b in self.view_btns.items():
+            b.setVisible(lay is not None)
+            b.setChecked(mode == ("picture" if picture else "grid"))
+        for mode, a in self.view_actions.items():
+            a.setEnabled(lay is not None)
+            a.setChecked(mode == ("picture" if picture else "grid"))
+        self.learn_all_btn.setVisible(lay is not None)
+        self.learn_all_action.setEnabled(lay is not None)
+        self.edit_photo_action.setEnabled(bool(r) and isinstance(r.get("layout"), dict))
+        self.stack.setCurrentIndex(1 if picture else 0)
         if r is None:
             self.remote_title.setText("<h2>No remotes yet</h2>Click <b>Add remote</b> to start.")
+            self.canvas.set_layout(None)
+            self.tip.setText("")
             return
-        learned = sum(1 for b in r["buttons"] if b["code"])
-        self.remote_title.setText(
-            f"<h2>{_esc(r['name'])}</h2>{learned} of {len(r['buttons'])} buttons learned")
+        if lay is not None:
+            names = layouts.button_names(lay)
+            learned = sum(1 for n in names if (core.find_button(r, n) or {}).get("code"))
+            self.remote_title.setText(
+                f"<h2>{_esc(r['name'])}</h2>{learned} of {len(names)} buttons learned"
+                f" &nbsp;·&nbsp; <span style='opacity:.7'>{_esc(lay['name'])}</span>")
+        else:
+            learned = sum(1 for b in r["buttons"] if b["code"])
+            self.remote_title.setText(
+                f"<h2>{_esc(r['name'])}</h2>{learned} of {len(r['buttons'])} buttons learned")
+        if picture:
+            self.tip.setText("Click a button to send it. Dim, dashed buttons aren't learned yet "
+                             "- click one to learn it, or use <b>Learn all</b>. "
+                             "Right-click for learn again, shortcut and clear.")
+            if self.canvas.layout_ is not lay and (self.canvas.layout_ or {}).get("id") != lay.get("id") \
+                    or self.canvas.remote is not r or lay.get("image"):
+                self.canvas.set_layout(lay, r)
+            else:
+                self.canvas.set_remote(r)
+            self._fill_extras(r, lay)
+            return
+        self.tip.setText("Click a button to send it. Right-click for learn, edit, shortcut, "
+                         "move and delete. Grey buttons aren't learned yet - click to learn."
+                         + ("" if lay else " Want a picture of your remote instead? "
+                            "Remote → Picture…"))
         for i, b in enumerate(r["buttons"]):
             self.grid.addWidget(self._tile(r, b, i), i // self.columns, i % self.columns)
         n = len(r["buttons"])
@@ -593,6 +725,26 @@ class MainWindow(QMainWindow):
         add.setAutoRaise(True)
         add.clicked.connect(lambda: self.learn(None))
         self.grid.addWidget(add, n // self.columns, n % self.columns)
+
+    def _fill_extras(self, r, lay):
+        while self.extras_lay.count():
+            w = self.extras_lay.takeAt(0).widget()
+            if w:
+                w.hide()
+                w.deleteLater()
+        extra = layouts.extra_buttons(lay, r)
+        self.extras.setVisible(bool(extra))
+        if not extra:
+            return
+        head = QLabel("<b>Other buttons</b>")
+        head.setToolTip("Saved buttons that have no place on this picture")
+        self.extras_lay.addWidget(head)
+        for b in extra:
+            t = self._tile(r, b, r["buttons"].index(b))
+            t.setFixedSize(170, 44)
+            t.setText(b["name"] + ("" if b["code"] else "  (not learned)"))
+            self.extras_lay.addWidget(t)
+        self.extras_lay.addStretch(1)
 
     def _tile(self, r, b, index) -> QToolButton:
         t = QToolButton()
@@ -664,17 +816,189 @@ class MainWindow(QMainWindow):
         m.addAction(icon("edit-delete"), "Delete", lambda: self.delete_button(r, b))
         m.exec(tile.mapToGlobal(pos))
 
+    def _spot_menu(self, name, gpos):
+        r = self.current_remote()
+        if r is None:
+            return
+        b = core.find_button(r, name)
+        learned = bool(b and b["code"])
+        m = QMenu(self)
+        head = m.addAction(name + ("" if learned else "  (not learned)"))
+        head.setEnabled(False)
+        m.addSeparator()
+        a = m.addAction(icon("media-playback-start"), "Send", lambda: self.send(r, b))
+        a.setEnabled(learned)
+        m.addAction(icon("media-record"), "Learn again…" if learned else "Learn…",
+                    lambda: self.learn(b, name=name))
+        m.addAction(icon("configure-shortcuts"),
+                    "Assign shortcut…" + (f"  ({b['shortcut']})" if b and b["shortcut"] else ""),
+                    lambda: self.assign_shortcut(r, name))
+        if b:
+            m.addAction(icon("document-edit"), "Edit code…", lambda: self.edit_button(r, b))
+            m.addSeparator()
+            m.addAction(icon("edit-clear"), "Clear", lambda: self.clear_button(r, name))
+        m.exec(gpos)
+
+    def press_name(self, name):
+        r = self.current_remote()
+        if r is None:
+            return
+        b = core.find_button(r, name)
+        if b and b["code"]:
+            self.send(r, b)
+        else:
+            self.learn(b, name=name)
+
+    def assign_shortcut(self, r, name):
+        b = core.find_button(r, name)
+        dlg = AssignShortcutDialog(self, r["name"], name, b["shortcut"] if b else "")
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        key = dlg.value()
+        if b is None:
+            if not key:
+                return
+            b = core.new_button(name)
+            r["buttons"].append(b)
+        if key == b["shortcut"]:
+            return
+        self._global_shortcut(r["name"], b["name"], key)
+        b["shortcut"] = key
+        self.save()
+        self.refresh_buttons()
+        if key and not b["code"]:
+            self.statusBar().showMessage(f"{key} is set - learn {name} so it has something "
+                                         "to send.", 6000)
+
+    def clear_button(self, r, name):
+        b = core.find_button(r, name)
+        if b is None:
+            return
+        extra = " and its shortcut" if b["shortcut"] else ""
+        if QMessageBox.question(self, "Clear button",
+                                f"Forget the learned code of “{name}”{extra}?"
+                                ) != QMessageBox.StandardButton.Yes:
+            return
+        if b["shortcut"]:
+            self._global_shortcut(r["name"], b["name"], "")
+        r["buttons"].remove(b)
+        self.save()
+        self.refresh_buttons()
+
+    def store_learned(self, r, name, code):
+        """Save a code captured by Learn all (straight away, so nothing is lost)."""
+        b = core.find_button(r, name)
+        if b is None:
+            b = core.new_button(name)
+            r["buttons"].append(b)
+        b.update(code=code, type=core.TYPE_LEARNED,
+                 frequency=b.get("frequency") or core.DEFAULT_FREQUENCY)
+        self.save()
+
+    def learn_all(self, autostart: bool = True):
+        r = self.current_remote()
+        lay = self.current_layout()
+        if r is None or lay is None:
+            QMessageBox.information(self, core.APP_NAME,
+                                    "Learn all needs a remote with a picture. Choose one with "
+                                    "Remote → Picture…")
+            return
+        if self.busy:
+            self.statusBar().showMessage("Busy - one moment…", 2000)
+            return
+        if self.view != "picture":
+            self.set_view("picture")
+        self.busy = True
+        self.status_timer.stop()
+        try:
+            self.wizard = visual.LearnAllDialog(self, r, lay,
+                                                lambda n, c: self.store_learned(r, n, c),
+                                                Worker, autostart=autostart)
+            self.wizard.exec()
+        finally:
+            self.wizard = None
+            self.busy = False
+            self.status_timer.start()
+            self.refresh_buttons()
+            self.update_device_status()
+
+    # Pictures
+    def _photo_layout(self, name: str, existing: dict | None = None) -> dict | None:
+        if existing is None:
+            start = os.path.expanduser("~/Pictures")
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Choose a photo of your remote",
+                start if os.path.isdir(start) else os.path.expanduser("~"),
+                "Images (*.png *.jpg *.jpeg *.webp *.bmp);;All files (*)")
+            if not path:
+                return None
+            img = visual.load_image(path)
+            if img.isNull():
+                QMessageBox.warning(self, core.APP_NAME, "That file isn't a picture IR Remote "
+                                                         "can read (try JPEG or PNG).")
+                return None
+            try:
+                rel = layouts.import_photo(path)
+            except OSError as e:
+                QMessageBox.warning(self, core.APP_NAME, f"Couldn't copy the photo:\n{e}")
+                return None
+            existing = layouts.new_photo_layout(rel, img.width(), img.height(), name)
+        dlg = visual.PhotoLayoutDialog(self, existing)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return dlg.result_layout()
+
+    def _apply_choice(self, r, choice) -> bool:
+        if choice == visual.KEEP_CHOICE:
+            return True
+        if choice == visual.PHOTO_CHOICE:
+            lay = self._photo_layout(r["name"])
+            if lay is None:
+                return False
+            r["layout"] = lay
+        elif choice:
+            r["layout"] = choice
+        else:
+            r.pop("layout", None)
+        return True
+
+    def change_picture(self):
+        r = self.current_remote()
+        if r is None:
+            return
+        dlg = visual.LayoutDialog(self, r["name"], r.get("layout"), ask_name=False)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        if self._apply_choice(r, dlg.choice()):
+            if r.get("layout"):
+                self.view = "picture"
+                self.settings.setValue("view", "picture")
+            self.save()
+            self.refresh_buttons()
+
+    def edit_photo(self):
+        r = self.current_remote()
+        if r is None or not isinstance(r.get("layout"), dict):
+            return
+        lay = self._photo_layout(r["name"], layouts.resolve(r) or r["layout"])
+        if lay is not None:
+            r["layout"] = lay
+            self.save()
+            self.canvas.set_layout(None)
+            self.refresh_buttons()
+
     # Actions: remotes
     def add_remote(self):
-        name, ok = QInputDialog.getText(self, "Add remote",
-                                        "Name for the new remote (e.g. Living room TV):")
-        name = name.strip()
-        if not ok or not name:
+        dlg = visual.LayoutDialog(self, taken={r["name"] for r in self.data["remotes"]})
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        if core.find_remote(self.data, name):
-            QMessageBox.information(self, core.APP_NAME, f"There's already a remote called {name}.")
+        r = {"name": dlg.name.text().strip(), "buttons": []}
+        if not self._apply_choice(r, dlg.choice()):
             return
-        self.data["remotes"].append({"name": name, "buttons": []})
+        self.data["remotes"].append(r)
+        if r.get("layout"):
+            self.view = "picture"
+            self.settings.setValue("view", "picture")
         self.save()
         self.refresh_remotes()
         self.remote_list.setCurrentRow(len(self.data["remotes"]) - 1)
@@ -746,7 +1070,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"✖ {b['name']}: {res.message}", 12000)
         self.update_device_status()
 
-    def learn(self, b):
+    def learn(self, b, name: str = ""):
         r = self.current_remote()
         if r is None:
             self.add_remote()
@@ -759,7 +1083,7 @@ class MainWindow(QMainWindow):
         self.busy = True
         self.status_timer.stop()
         try:
-            dlg = LearnDialog(self, r["name"], b)
+            dlg = LearnDialog(self, r["name"], b, fixed_name=name)
             if dlg.exec() != QDialog.DialogCode.Accepted:
                 return
             name = dlg.button_name()
@@ -784,6 +1108,8 @@ class MainWindow(QMainWindow):
             self.save()
             self.refresh_buttons()
             self.statusBar().showMessage(f"✔ Saved {r['name']} / {name}", 5000)
+            if self.view == "picture":
+                self.canvas.flash_button(name)
         finally:
             self.busy = False
             self.status_timer.start()

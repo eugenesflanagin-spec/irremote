@@ -16,6 +16,8 @@ examples:
   irremote send-code --nec 20df         send a raw NEC code (address 20, command df)
   irremote learn                        capture one button and print its code
   irremote list                         show remotes and buttons
+  irremote layouts                      list the remote pictures (layouts)
+  irremote layout TV vizio-onn-tv       show TV as a picture of that remote
   irremote shortcut set TV Power Meta+Ctrl+P
   irremote status | reset               check / un-stick the dongle
 """
@@ -46,6 +48,12 @@ def cmd_send(a) -> int:
         msg = (f"{remote['name']} {button['name']} isn't learned yet - "
                "open IR Remote and learn it")
         return _fail(msg, a.notify)
+    if a.dry_run:
+        kind = "NEC" if button["type"] == core.TYPE_NEC else "learned"
+        _p(f"Would send {remote['name']} / {button['name']} ({kind} code, "
+           f"{len(button['code']) // 2} bytes, {button['frequency']} Hz) "
+           f"x{max(1, a.repeat)} - nothing sent")
+        return 0
     for _ in range(max(1, a.repeat)):
         res = core.transmit_button(button)
         if not res.ok:
@@ -88,12 +96,46 @@ def cmd_learn(a) -> int:
 
 def cmd_list(a) -> int:
     data = core.load()
+    from . import layouts
     for r in data["remotes"]:
-        _p(r["name"])
+        _p(f"{r['name']}  [picture: {layouts.describe(r)}]" if r.get("layout") else r["name"])
         for b in r["buttons"]:
             state = (b["type"] if b["code"] else "not learned")
             extra = f"  [{b['shortcut']}]" if b["shortcut"] else ""
             _p(f"  {b['name']}  ({state}){extra}")
+    return 0
+
+
+def cmd_layouts(a) -> int:
+    from . import layouts
+    for lay in layouts.all_layouts():
+        _p(f"{lay['id']:<24} {lay['name']}  ({len(layouts.hotspots(lay))} buttons)")
+        if a.verbose:
+            _p(f"    {', '.join(layouts.learn_order(lay))}")
+    return 0
+
+
+def cmd_layout(a) -> int:
+    from . import layouts
+    data = core.load()
+    remote = core.find_remote(data, a.remote)
+    if remote is None:
+        return _fail(f"no remote called \"{a.remote}\"", False)
+    if a.layout is None:
+        _p(f"{remote['name']}: {layouts.describe(remote)}")
+        return 0
+    if a.layout.casefold() in ("none", "grid"):
+        if isinstance(remote.get("layout"), dict) and not a.force:
+            return _fail("this remote uses your own picture; add --force to drop it", False)
+        remote.pop("layout", None)
+    else:
+        lay = layouts.get(a.layout)
+        if lay is None:
+            ids = ", ".join(l["id"] for l in layouts.all_layouts())
+            return _fail(f"no layout \"{a.layout}\" (have: {ids})", False)
+        remote["layout"] = lay["id"]
+    core.save(data)
+    _p(f"{remote['name']}: {layouts.describe(remote)}")
     return 0
 
 
@@ -186,6 +228,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("button")
     s.add_argument("-r", "--repeat", type=int, default=1, help="send it N times")
     s.add_argument("-q", "--quiet", action="store_true")
+    s.add_argument("--dry-run", action="store_true",
+                   help="only check that the button exists and is learned; send nothing")
     s.add_argument("--no-notify", dest="notify", action="store_false",
                    help="don't show a desktop notification on problems")
     s.set_defaults(func=cmd_send)
@@ -203,6 +247,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_learn)
 
     sub.add_parser("list", help="list remotes and buttons").set_defaults(func=cmd_list)
+    s = sub.add_parser("layouts", help="list remote pictures (layouts)")
+    s.add_argument("-v", "--verbose", action="store_true", help="also list their buttons")
+    s.set_defaults(func=cmd_layouts)
+    s = sub.add_parser("layout", help="show or set the picture a remote uses")
+    s.add_argument("remote")
+    s.add_argument("layout", nargs="?", help="layout id from 'irremote layouts', or none")
+    s.add_argument("--force", action="store_true", help="allow dropping your own photo layout")
+    s.set_defaults(func=cmd_layout)
     sub.add_parser("status", help="check the dongle").set_defaults(func=cmd_status)
     sub.add_parser("reset", help="un-stick the dongle (USB reset)").set_defaults(func=cmd_reset)
 

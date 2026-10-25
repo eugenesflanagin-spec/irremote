@@ -26,6 +26,8 @@ VENDOR_ID = "045c"
 PRODUCT_IDS = {"0132", "0184", "0195", "0134"}
 UDEV_RULE = "/usr/lib/udev/rules.d/70-elksmart-ir.rules"
 
+DATA_VERSION = 2   # 1 = IR Remote 1.0.0; 2 adds an optional "layout" per remote
+
 TYPE_LEARNED = "learned"
 TYPE_NEC = "nec"
 
@@ -56,7 +58,7 @@ def _lock_path() -> str:
 
 def default_data() -> dict:
     return {
-        "version": 1,
+        "version": DATA_VERSION,
         "remotes": [
             {"name": "TV", "buttons": [new_button("Power")]},
         ],
@@ -79,11 +81,14 @@ def normalize(data: dict) -> dict:
     """Validate and fill in defaults. Raises ValueError on bad input."""
     if not isinstance(data, dict) or not isinstance(data.get("remotes"), list):
         raise ValueError("not an IR Remote file (missing \"remotes\" list)")
-    out = {"version": 1, "remotes": []}
+    out = {"version": DATA_VERSION, "remotes": []}
     for r in data["remotes"]:
         if not isinstance(r, dict) or not str(r.get("name", "")).strip():
             raise ValueError("every remote needs a name")
         remote = {"name": str(r["name"]).strip(), "buttons": []}
+        layout = _normalize_layout_ref(r.get("layout"))
+        if layout:
+            remote["layout"] = layout
         for b in r.get("buttons", []) or []:
             if not isinstance(b, dict) or not str(b.get("name", "")).strip():
                 raise ValueError(f"remote {remote['name']!r}: every button needs a name")
@@ -101,6 +106,32 @@ def normalize(data: dict) -> dict:
     return out
 
 
+def _normalize_layout_ref(ref):
+    """A remote's picture: a layout id (str), its own photo layout (dict), or None.
+
+    Version 1 files have no "layout" at all and simply show the grid.
+    An own-photo layout that doesn't validate is kept as it is (never thrown
+    away); the window then falls back to the grid for that remote.
+    """
+    if isinstance(ref, str):
+        return ref.strip() or None
+    if isinstance(ref, dict):
+        from . import layouts
+        try:
+            return layouts.validate(ref)
+        except ValueError:
+            return copy.deepcopy(ref)
+    return None
+
+
+def file_version(path: str) -> int:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return int(json.load(f).get("version", 1))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0
+
+
 def load(path: str | None = None) -> dict:
     path = path or config_path()
     if not os.path.exists(path):
@@ -112,6 +143,11 @@ def load(path: str | None = None) -> dict:
 def save(data: dict, path: str | None = None) -> None:
     path = path or config_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # First save over a 1.0.0 file: keep a copy, in case you go back to 1.0.0.
+    if os.path.exists(path) and 0 < file_version(path) < DATA_VERSION:
+        backup = f"{path}.v{file_version(path)}-backup"
+        if not os.path.exists(backup):
+            shutil.copy2(path, backup)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(normalize(data), f, indent=2, ensure_ascii=False)
@@ -136,6 +172,8 @@ def merge(base: dict, extra: dict) -> dict:
         if target is None:
             out["remotes"].append(copy.deepcopy(r))
             continue
+        if r.get("layout") and not target.get("layout"):
+            target["layout"] = copy.deepcopy(r["layout"])
         for b in r["buttons"]:
             existing = find_button(target, b["name"])
             if existing is None:

@@ -5,7 +5,7 @@
 # Build and install packaging/elksmart-comm-git first.
 
 pkgname=irremote
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc="IR Remote - friendly desktop remote control for ELK Smart / OCRUSTAR USB infrared blasters"
 arch=('any')
@@ -22,7 +22,7 @@ pkgver() {
 prepare() {
 	rm -rf "$srcdir/tree"
 	mkdir -p "$srcdir/tree"
-	cp -r "$startdir"/{irremote,tests,bin,data,README.md,LICENSE} "$srcdir/tree/"
+	cp -r "$startdir"/{irremote,tests,tools,bin,data,README.md,CHANGELOG.md,LICENSE} "$srcdir/tree/"
 	find "$srcdir/tree" -name __pycache__ -prune -exec rm -rf {} +
 }
 
@@ -36,10 +36,12 @@ package() {
 	cd tree
 	install -d "$pkgdir/usr/lib/irremote/irremote"
 	install -m644 irremote/*.py "$pkgdir/usr/lib/irremote/irremote/"
+	install -Dm644 -t "$pkgdir/usr/lib/irremote/irremote/layouts" irremote/layouts/*.json
 	python -m compileall -q -d /usr/lib/irremote "$pkgdir/usr/lib/irremote"
 	install -Dm755 bin/irremote "$pkgdir/usr/bin/irremote"
 	install -Dm644 data/irremote.desktop "$pkgdir/usr/share/applications/irremote.desktop"
 	install -Dm644 data/irremote.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/irremote.svg"
 	install -Dm644 README.md "$pkgdir/usr/share/doc/irremote/README.md"
+	install -Dm644 CHANGELOG.md "$pkgdir/usr/share/doc/irremote/CHANGELOG.md"
 	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/irremote/LICENSE"
 }

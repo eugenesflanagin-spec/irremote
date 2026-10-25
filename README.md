@@ -41,6 +41,76 @@ Start it from the application menu (**Utilities -> IR Remote**) or run `irremote
 
 Then just click the button to send it.
 
+## A picture of your remote
+
+IR Remote can show your remote as a **picture of the real thing**: click a
+button on the picture to send it, just like pressing it on the remote.
+
+![The TV remote as a picture: learned buttons are solid, the rest are dim and dashed](docs/screenshots/tv-remote-vizio-onn.png)
+
+Two remotes are built in:
+
+* **TV remote - VIZIO / onn. (VQM55C-1004)** - the onn. "Powered by VIZIO"
+  voice remote. Volume Up/Down and Mute are the small buttons on its right side.
+* **Android TV box remote - onn. 4K Pro (Google TV)** - the remote of the
+  onn. Google TV 4K Pro streaming box (also sold as a replacement, TCNOUMT).
+
+![The Google TV box remote as a picture](docs/screenshots/android-tv-box-remote-onn-google-tv.png)
+
+How to use it:
+
+1. **Remote -> Add remote...**, give it a name and pick a picture
+   (or, for a remote you already have: **Remote -> Picture...**).
+2. Buttons you haven't taught IR Remote yet look **dim with a dashed outline**.
+   Hover over a button to see its name and whether it's learned.
+3. **Click a dim button** to learn it, or click **Learn all...** to go through
+   every button in turn: the button glows on the picture and IR Remote says
+   which one to press ("Press VOLUME UP on your remote"). It starts with the
+   buttons most likely to work (Power, Volume, Mute, Input). **Skip** buttons
+   that don't learn, **Back** to test one again, **Finish** whenever you like -
+   everything you learned so far is already saved.
+4. **Click a learned button** to send it. **Right-click** a button for
+   **Learn again**, **Assign shortcut** and **Clear**.
+
+**View -> Grid / Picture** (or the buttons top right) switches between the
+picture and the plain grid of buttons at any time.
+
+![Learn all: the button to press glows on the picture](docs/screenshots/learn-all.png)
+
+### Use a photo of your own remote
+
+Have a different remote? **Add remote -> Use my own picture...** and pick a
+photo of it (taken straight from the front works best). Then draw a shape
+over each button: **Add round** or **Add square**, type the button's name,
+drag the shape onto the button in the photo, and drag its little corner
+square to make it fit. Double-click a shape to rename it, press **Delete** to
+remove it. Change it later with **Remote -> Buttons on my picture...**.
+
+Your photo is copied to `~/.config/irremote/photos/`; it stays on your
+computer and isn't part of IR Remote.
+
+### Why won't some buttons learn? (Bluetooth)
+
+IR Remote can only learn buttons that send **infrared** light. Many modern
+remotes send some or most buttons over **Bluetooth** instead, and the dongle
+can't see those at all - learning them just ends with "Nothing was received".
+
+* **The Google TV box remote** talks to the box over Bluetooth once it's
+  paired - usually the D-pad, Home, Back, the app buttons and the Assistant/mic
+  button. Typically only the **TV buttons (Power, Volume, Mute, Input)** are
+  infrared, and those are meant for your TV, not the box. The box itself may
+  need an infrared receiver to be controlled by IR at all, so learning the box's
+  buttons may not work. The picture is still there for the buttons that do.
+* **The VIZIO TV remote**: the **Voice** (mic) button is Bluetooth-only; the
+  other buttons are normally infrared.
+
+If a button "learns nothing" even though you held it close to the dongle,
+that's most likely why: just **Skip** it.
+
+Also: infrared needs a **clear line of sight**. When sending, the TV (its
+remote sensor, usually at the bottom edge of the screen) must be **in front
+of the dongle**, with nothing in between.
+
 ## Send from a keyboard shortcut
 
 A global shortcut is already set up for the TV:
@@ -74,6 +144,9 @@ irremote send-code -f 36000 <hex>     # raw learned code at 36 kHz
 irremote learn                        # capture a button, print its code
 irremote learn --save "Fan" "Speed"   # capture and save it
 irremote list | status | reset
+irremote send --dry-run "TV" "Power"  # check a button is there and learned, send nothing
+irremote layouts                      # list the remote pictures (add -v for their buttons)
+irremote layout "TV" vizio-onn-tv     # show the TV remote as that picture (none = grid)
 irremote export ~/ir-remotes.json     # share your remotes
 irremote import [--merge] file.json
 ```
@@ -83,7 +156,13 @@ irremote import [--merge] file.json
 
 ## Where things are kept
 
-* Remotes: `~/.config/irremote/remotes.json` (plain JSON; File -> Import/Export to share)
+* Remotes: `~/.config/irremote/remotes.json` (plain JSON; File -> Import/Export to share).
+  The first time IR Remote 1.1 saves over a 1.0 file it keeps the old one as
+  `remotes.json.v1-backup`.
+* Photos of your own remotes: `~/.config/irremote/photos/`
+* Extra remote pictures (layouts) you make or get from others:
+  `~/.config/irremote/layouts/*.json` (same format as the built-in ones in
+  `/usr/lib/irremote/irremote/layouts/`; see `irremote/layouts.py` for the format)
 * Global-shortcut launchers: `~/.local/share/applications/irremote-*.desktop`
 * Window settings: `~/.config/irremote/irremote.conf`
 
@@ -93,13 +172,18 @@ irremote import [--merge] file.json
 |---|---|
 | **Dongle not found** | Plug it in. `lsusb` should list `045c:0132 ELKSMART Smart IR Blaster`. |
 | **No permission** | The udev rule isn't applied yet: unplug and replug the dongle. Check with `getfacl /dev/bus/usb/BBB/DDD` - your user should be listed. |
-| **Nothing was received** when learning | Hold the remote closer (under 1 cm), aim at the tip of the dongle, hold the button a little longer, try again. Some remotes need fresh batteries. |
+| **Nothing was received** when learning | Hold the remote closer (under 1 cm), aim at the tip of the dongle, hold the button a little longer, try again. Some remotes need fresh batteries. If one particular button never learns, it probably uses Bluetooth, not infrared (see "Why won't some buttons learn?") - skip it. |
 | **The dongle isn't answering** | Use **Dongle -> Reset dongle** (or `irremote reset`). If it still fails, unplug and replug it. This can happen after a cancelled learn - the dongle waits for an IR signal and ignores everything else until it gets one; IR Remote resets it automatically in that case. |
-| Button "sent" but the TV doesn't react | Learn the button again (captures aren't always perfect), aim the dongle at the TV, and check the frequency (38000 Hz is right for almost everything). |
+| Button "sent" but the TV doesn't react | Make sure the dongle can "see" the TV (line of sight to its sensor). Learn the button again (captures aren't always perfect), and check the frequency (38000 Hz is right for almost everything). |
 | **in use by another program** | Only one program can use the dongle at once; wait a moment and retry. |
 | Shortcut does nothing | Check System Settings -> Keyboard -> Shortcuts for the entry "IR Remote: TV Power". Run the command (`irremote send "TV" "Power"`) in a terminal to see the error. |
 
 ## Technical notes
+
+* Remote pictures are vector drawings made from small JSON files (shapes,
+  positions, names) - no logos or artwork; app buttons just show their names.
+  Button names on a picture are the names buttons are saved under, so
+  `irremote send "TV" "Volume Up"` works whichever view you use.
 
 * Learned codes are stored exactly as elksmart-comm prints them ("Full command").
   NEC codes are stored as address+command pairs and sent with `--nec`.

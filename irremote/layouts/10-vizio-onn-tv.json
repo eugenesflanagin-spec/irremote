@@ -1,0 +1,37 @@
+{
+  "format": "irremote-layout",
+  "version": 1,
+  "id": "vizio-onn-tv",
+  "name": "TV remote - VIZIO / onn. (VQM55C-1004)",
+  "description": "The onn. \"Powered by VIZIO\" voice remote that comes with VIZIO TVs such as the 55\" Mini-LED Quantum 4K QLED VQM55C-1004. Volume Up/Down and Mute are on the right-hand side; the gear button is Menu (Quick Settings). Voice works over Bluetooth only.",
+  "width": 114,
+  "height": 316,
+  "learn_first": ["Power", "Volume Up", "Volume Down", "Mute", "Input"],
+  "body": {"x": 6, "y": 0, "w": 100, "h": 316, "radius": 48, "color": "#26282c"},
+  "decorations": [
+    {"type": "glyph", "icon": "mic", "x": 55.3, "y": 24, "size": 7, "color": "#8d939b"},
+    {"type": "text", "text": "onn.", "x": 56, "y": 277, "size": 12, "bold": true, "color": "#d9dadc"},
+    {"type": "text", "text": "POWERED BY", "x": 56, "y": 288, "size": 3.4, "bold": true, "color": "#d9dadc"},
+    {"type": "text", "text": "VIZIO", "x": 56, "y": 296, "size": 7.5, "bold": true, "color": "#d9dadc"}
+  ],
+  "buttons": [
+    {"shape": "circle", "name": "Input", "x": 28.4, "y": 25, "r": 9.7, "label": "INPUT", "font": 3.4, "bold": true, "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Power", "x": 78.4, "y": 24, "r": 9.7, "icon": "power", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Voice", "x": 25, "y": 57.6, "r": 11.4, "icon": "mic", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "WatchFree+", "x": 55.3, "y": 51.7, "r": 13, "label": "WATCH\nFREE+", "font": 4, "bold": true, "color": "#e5432a", "text_color": "#ffffff"},
+    {"shape": "circle", "name": "Menu", "x": 85.6, "y": 57.6, "r": 11.4, "icon": "settings", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "dpad", "x": 55.3, "y": 110.3, "r": 40.7, "inner": 17.2, "color": "#34373c", "ok_color": "#2b2e32", "glyph_color": "#7c828a", "text_color": "#9aa0a6",
+     "names": {"up": "Up", "down": "Down", "left": "Left", "right": "Right", "ok": "OK"}},
+    {"shape": "circle", "name": "Back", "x": 26, "y": 163.8, "r": 11.4, "icon": "back", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Home", "x": 55.3, "y": 172.4, "r": 11.4, "icon": "home", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Star", "x": 84.6, "y": 162, "r": 11.4, "icon": "star", "color": "#3a3d42", "text_color": "#f2f2f2"},
+    {"shape": "circle", "name": "Disney+", "x": 26, "y": 203.4, "r": 12, "label": "Disney+", "font": 4, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "circle", "name": "Netflix", "x": 55.3, "y": 203.4, "r": 12, "label": "Netflix", "font": 4, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "circle", "name": "Prime Video", "x": 84.6, "y": 203.4, "r": 12, "label": "Prime\nVideo", "font": 3.8, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "circle", "name": "Paramount+", "x": 26, "y": 236.2, "r": 12, "label": "Para-\nmount+", "font": 3.6, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "circle", "name": "iHeartRadio", "x": 55.3, "y": 236.2, "r": 12, "label": "iHeart\nRadio", "font": 3.8, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "circle", "name": "Stingray Music", "x": 84.6, "y": 236.2, "r": 12, "label": "Stingray\nMusic", "font": 3.4, "bold": true, "color": "#ececec", "text_color": "#1f2a44"},
+    {"shape": "rocker", "x": 108.2, "y": 87, "w": 6, "h": 42, "names": {"top": "Volume Up", "bottom": "Volume Down"}, "icons": {"top": "plus", "bottom": "minus"}, "color": "#3a3d42", "text_color": "#d0d3d8"},
+    {"shape": "pill", "name": "Mute", "x": 108.2, "y": 138, "w": 6, "h": 17, "icon": "mute", "color": "#3a3d42", "text_color": "#d0d3d8"}
+  ]
+}
