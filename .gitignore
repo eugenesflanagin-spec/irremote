@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+/src/
+/pkg/
+*.pkg.tar.*
+*.log
+packaging/*/src/
+packaging/*/pkg/
+packaging/*/usb-drivers/
+packaging/*/liberty/

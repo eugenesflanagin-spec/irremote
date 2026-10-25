@@ -1,0 +1,11 @@
+_reload() {
+	udevadm control --reload 2>/dev/null || true
+	udevadm trigger --action=add --subsystem-match=usb --attr-match=idVendor=045c 2>/dev/null || true
+}
+post_install() {
+	_reload
+	echo ":: If the IR dongle was plugged in, it is now usable without sudo."
+	echo "   (Otherwise just unplug and replug it.)"
+}
+post_upgrade() { _reload; }
+post_remove() { udevadm control --reload 2>/dev/null || true; }

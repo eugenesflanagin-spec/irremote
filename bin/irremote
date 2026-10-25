@@ -1,0 +1,7 @@
+#!/usr/bin/python3 -sP
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Eugene Flanagin
+import sys
+sys.path.insert(0, "/usr/lib/irremote")
+from irremote.cli import main
+sys.exit(main())

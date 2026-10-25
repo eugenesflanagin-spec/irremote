@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+[Desktop Entry]
+Type=Application
+Name=IR Remote
+GenericName=Infrared Remote Control
+Comment=Learn and send TV, soundbar and other remote buttons with a USB IR blaster
+Exec=irremote
+Icon=irremote
+Terminal=false
+Categories=Utility;
+Keywords=infrared;IR;remote;TV;blaster;elksmart;ocrustar;
+StartupWMClass=irremote

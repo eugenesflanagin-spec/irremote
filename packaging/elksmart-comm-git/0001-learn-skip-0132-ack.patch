@@ -1,0 +1,28 @@
+Skip the learn-mode acknowledgement sent by 045c:0132 dongles.
+
+The 045c:0132 "Smart IR Blaster" answers the learn command with ff ff ff ff
+before any infrared data. Upstream treats that as "unexpected response" and
+gives up immediately, so learning never works on this model.
+
+diff --git a/elksmart-comm.c b/elksmart-comm.c
+index 0250acb..ef606cc 100644
+--- a/elksmart-comm.c
++++ b/elksmart-comm.c
+@@ -564,8 +564,16 @@ recv_learn(libusb_device_handle *device, struct str *data, struct error **e)
+ {
+ 	uint8_t buffer[64] = {};
+ 	int result = 0, len = 0;
++	static const uint8_t c_ack[] = {0xff, 0xff, 0xff, 0xff};
+ 	while ((result = libusb_bulk_transfer(
+-				device, g.endpoint_in, buffer, sizeof buffer, &len, 100))) {
++				device, g.endpoint_in, buffer, sizeof buffer, &len, 100)) ||
++			(len == sizeof c_ack && !memcmp(buffer, c_ack, sizeof c_ack))) {
++		// Some dongles (045c:0132) acknowledge learn mode with ff ff ff ff
++		// before any infrared data arrives; keep waiting for the real code.
++		if (!result) {
++			print_debug("learn/recv: skipping acknowledgement");
++			continue;
++		}
+ 		if (result != LIBUSB_ERROR_TIMEOUT)
+ 			return error_set(e, "learn/recv: %s", libusb_strerror(result));
+ 		print_debug("learn/recv: %s", libusb_strerror(result));
