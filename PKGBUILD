@@ -9,6 +9,7 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="IR Remote - friendly desktop remote control for ELK Smart / OCRUSTAR USB infrared blasters"
 arch=('any')
+url="https://github.com/eugenesflanagin-spec/irremote"
 license=('MIT')
 depends=('python' 'python-pyqt6' 'python-dbus' 'elksmart-comm-git')
 optdepends=('libnotify: notifications from "irremote send" (keyboard shortcuts)'
