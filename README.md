@@ -115,3 +115,7 @@ The dongle protocol is implemented by **elksmart-comm**, part of
 [usb-drivers](https://git.janouch.name/p/usb-drivers) by
 Přemysl Eric Janouch (0BSD licence; see
 `/usr/share/licenses/elksmart-comm-git/LICENSE`). IR Remote only runs it.
+
+IR Remote itself is MIT licensed (see `LICENSE`). The packaging in `packaging/elksmart-comm-git/`
+builds elksmart-comm from upstream with one small patch, and keeps its 0BSD licence in
+`packaging/elksmart-comm-git/LICENSE.usb-drivers`.
