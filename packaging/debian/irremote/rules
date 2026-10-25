@@ -1,0 +1,36 @@
+#!/usr/bin/make -f
+# IR Remote is plain Python in a private directory, /usr/lib/irremote (the
+# same layout as the Arch package); dh_python3 byte-compiles it at install time.
+D = $(CURDIR)/debian/irremote
+
+%:
+	dh $@ --with python3
+
+override_dh_auto_build:
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	T=$$(mktemp -d) && QT_QPA_PLATFORM=offscreen HOME=$$T XDG_CONFIG_HOME=$$T/.config \
+		XDG_DATA_HOME=$$T/.local/share XDG_RUNTIME_DIR=$$T python3 -m unittest discover -s tests; \
+		rc=$$?; rm -rf $$T; exit $$rc
+	desktop-file-validate data/irremote.desktop
+endif
+
+override_dh_auto_install:
+	install -d $(D)/usr/lib/irremote/irremote
+	install -m644 irremote/*.py $(D)/usr/lib/irremote/irremote/
+	install -Dm644 -t $(D)/usr/lib/irremote/irremote/layouts irremote/layouts/*.json
+	install -Dm755 bin/irremote $(D)/usr/bin/irremote
+	install -Dm644 data/irremote.desktop $(D)/usr/share/applications/irremote.desktop
+	install -Dm644 data/irremote.svg $(D)/usr/share/icons/hicolor/scalable/apps/irremote.svg
+	install -Dm644 README.md $(D)/usr/share/doc/irremote/README.md
+
+override_dh_python3:
+	dh_python3 /usr/lib/irremote
+
+override_dh_installchangelogs:
+	dh_installchangelogs CHANGELOG.md
+
+# the README is opened as a file by people: keep it uncompressed
+override_dh_compress:
+	dh_compress -XREADME.md

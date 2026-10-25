@@ -11,21 +11,56 @@ talking to the dongle.
 
 ## Install
 
-Arch Linux, from this repository:
+IR Remote needs two packages: **elksmart-comm** (the small program that talks
+to the dongle, plus a udev rule so you can use it without `sudo`) and
+**irremote** (the app). Both are on the
+[Releases page](https://github.com/eugenesflanagin-spec/irremote/releases)
+for each supported distribution. Download the two files for your system into
+one folder, open a terminal there, and run the line for your distribution.
+Your package manager installs PyQt6 and dbus-python for you.
+
+| Distribution | Files to download | Install command |
+|---|---|---|
+| **Arch Linux** (and Manjaro, EndeavourOS, CachyOS) | `elksmart-comm-git-...-x86_64.pkg.tar.zst`, `irremote-...-any.pkg.tar.zst` | `sudo pacman -U ./elksmart-comm-git-*.pkg.tar.zst ./irremote-*-any.pkg.tar.zst` |
+| **Debian 13** (trixie) | the two files with `.deb13` in the name | `sudo apt install ./elksmart-comm_*.deb13_amd64.deb ./irremote_*.deb13_all.deb` |
+| **Ubuntu 24.04** (noble) and flavours | the two files with `.ubuntu24.04` in the name | `sudo apt install ./elksmart-comm_*.ubuntu24.04_amd64.deb ./irremote_*.ubuntu24.04_all.deb` |
+| **Fedora 44** | the two files with `.fc44` in the name | `sudo dnf install ./elksmart-comm-*.fc44.x86_64.rpm ./irremote-*.fc44.noarch.rpm` |
+| **openSUSE Tumbleweed** | the two files with `.tw` in the name | `sudo zypper install --allow-unsigned-rpm ./elksmart-comm-*.tw.x86_64.rpm ./irremote-*.tw.noarch.rpm` |
+
+Notes:
+
+* Type `./` in front of the file names: that tells the package manager to
+  use the downloaded file instead of searching its online repositories.
+* On Ubuntu, PyQt6 comes from the **universe** repository, which is switched
+  on by default. If apt says it can't find `python3-pyqt6`, run
+  `sudo add-apt-repository universe` and try again.
+* openSUSE asks about the package signature because these files aren't
+  signed; `--allow-unsigned-rpm` says that's fine. You can compare the files
+  with `SHA256SUMS` from the same release (`sha256sum -c SHA256SUMS --ignore-missing`).
+* After installing, unplug and replug the dongle once (the package also tries
+  to apply the udev rule right away). The rule is
+  `/usr/lib/udev/rules.d/70-elksmart-ir.rules` on every distribution.
+* To remove: `sudo pacman -R irremote elksmart-comm-git`,
+  `sudo apt remove irremote elksmart-comm`, `sudo dnf remove irremote elksmart-comm`
+  or `sudo zypper remove irremote elksmart-comm`. Your remotes in
+  `~/.config/irremote/` stay.
+
+**Arch Linux, built from this repository** (instead of the release files):
 
 ```
 cd packaging/elksmart-comm-git && makepkg -si     # the dongle tool + udev rule
 cd ../.. && makepkg -si                           # IR Remote itself
 ```
 
-`elksmart-comm-git` builds **elksmart-comm** from upstream and also installs a
-udev rule (`/usr/lib/udev/rules.d/70-elksmart-ir.rules`) so you can use the
-dongle without `sudo`. If the dongle was already plugged in, unplug and replug
-it once (the package also tries to apply the rule right away).
+`elksmart-comm-git` builds **elksmart-comm** from upstream and also installs the
+udev rule.
 
-Other distributions: install elksmart-comm (from
+**Other distributions:** install elksmart-comm (from
 [usb-drivers](https://git.janouch.name/p/usb-drivers)), PyQt6 and dbus-python,
-copy the udev rule, then run `python -m irremote` from this directory.
+copy `packaging/elksmart-comm-git/70-elksmart-ir.rules` to
+`/usr/lib/udev/rules.d/`, then run `python3 -m irremote` from this directory.
+
+How the release packages are built and tested: see `packaging/README.md`.
 
 Start it from the application menu (**Utilities -> IR Remote**) or run `irremote`.
 
@@ -197,9 +232,11 @@ irremote import [--merge] file.json
 
 The dongle protocol is implemented by **elksmart-comm**, part of
 [usb-drivers](https://git.janouch.name/p/usb-drivers) by
-Přemysl Eric Janouch (0BSD licence; see
-`/usr/share/licenses/elksmart-comm-git/LICENSE`). IR Remote only runs it.
+Přemysl Eric Janouch (0BSD licence; installed with the elksmart-comm package,
+for example `/usr/share/licenses/elksmart-comm-git/LICENSE` on Arch,
+`/usr/share/doc/elksmart-comm/copyright` on Debian/Ubuntu and
+`/usr/share/licenses/elksmart-comm/LICENSE` on Fedora/openSUSE). IR Remote only runs it.
 
-IR Remote itself is MIT licensed (see `LICENSE`). The packaging in `packaging/elksmart-comm-git/`
-builds elksmart-comm from upstream with one small patch, and keeps its 0BSD licence in
-`packaging/elksmart-comm-git/LICENSE.usb-drivers`.
+IR Remote itself is MIT licensed (see `LICENSE`). The packaging in `packaging/`
+builds elksmart-comm from upstream (a pinned commit) with one small patch, and keeps its
+0BSD licence in `packaging/elksmart-comm-git/LICENSE.usb-drivers`.

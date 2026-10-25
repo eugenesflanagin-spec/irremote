@@ -1,0 +1,59 @@
+# Maintainer: Eugene Flanagin <eflanagin@pm.me>
+# Contributor: Přemysl Eric Janouch <p@janouch.name> (author of usb-drivers / elksmart-comm)
+#
+# CI copy of packaging/elksmart-comm-git/PKGBUILD. The only differences: the
+# source is the pinned tarball made by packaging/fetch-elksmart-comm.sh (with
+# liberty already inside) instead of the two git clones, so pkgver() and the
+# submodule step are not needed; packaging/build-arch.sh writes pkgver, pkgrel
+# and the checksum at build time. Keep the rest in step with that file.
+
+pkgname=elksmart-comm-git
+_tarver=SET_BY_BUILD_ARCH
+pkgver=1.2.0.r0.gd48653a   # set by build-arch.sh
+pkgrel=2                   # set by build-arch.sh
+pkgdesc="Command-line tool for ELK Smart / OCRUSTAR USB infrared blaster dongles (learn and transmit IR codes)"
+arch=('x86_64')
+url="https://git.janouch.name/p/usb-drivers"
+license=('0BSD')
+depends=('libusb' 'glibc')
+makedepends=('cmake' 'ninja')
+provides=('elksmart-comm')
+conflicts=('elksmart-comm')
+install=elksmart-comm.install
+source=("elksmart-comm-${_tarver}.tar.gz"
+        "70-elksmart-ir.rules"
+        "0001-learn-skip-0132-ack.patch")
+sha256sums=('SKIP'   # set by build-arch.sh
+            '61e8b114f1a6a5ff239b8346d2d2c86fd854d931847a27884a959413de64fc58'
+            '3782805eabbb8040e1161c1af65f2f00ef57ed547578f74f2a259a239c8e568a')
+
+prepare() {
+	mv "elksmart-comm-${_tarver}" usb-drivers
+	cd usb-drivers
+	# 045c:0132 replies "ff ff ff ff" to the learn command before any IR data;
+	# upstream treats that as "unexpected response" and gives up immediately.
+	patch -Np1 -i "$srcdir/0001-learn-skip-0132-ack.patch"
+}
+
+build() {
+	cmake -S usb-drivers -B build -G Ninja \
+		-DCMAKE_BUILD_TYPE=None \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DWITH_HIDAPI=OFF \
+		-DWITH_LIBUSB=ON \
+		-DBUILD_TESTING=ON
+	ninja -C build elksmart-comm test-elksmart-comm
+}
+
+check() {
+	./build/test-elksmart-comm
+}
+
+package() {
+	install -Dm755 build/elksmart-comm "$pkgdir/usr/bin/elksmart-comm"
+	install -Dm644 70-elksmart-ir.rules "$pkgdir/usr/lib/udev/rules.d/70-elksmart-ir.rules"
+	install -Dm644 usb-drivers/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+	install -d "$pkgdir/usr/share/doc/$pkgname"
+	awk '/^elksmart-comm$/{p=1} p&&/^razer-bw-te-ctl$/{exit} p' usb-drivers/README.adoc \
+		> "$pkgdir/usr/share/doc/$pkgname/README.adoc"
+}

@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --builddirectory=build
+
+override_dh_auto_configure:
+	dh_auto_configure -- -DWITH_HIDAPI=OFF -DWITH_LIBUSB=ON -DBUILD_TESTING=ON
+
+# only elksmart-comm (usb-drivers also has other tools, not packaged here)
+override_dh_auto_build:
+	dh_auto_build -- elksmart-comm test-elksmart-comm
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	./build/test-elksmart-comm
+endif
+
+# the udev rule keeps its name (70-elksmart-ir.rules: IR Remote and the docs
+# refer to it, and it must sort before 73-seat-late.rules for TAG+="uaccess"),
+# so it is installed here rather than renamed by dh_installudev
+override_dh_auto_install:
+	install -Dm755 build/elksmart-comm debian/elksmart-comm/usr/bin/elksmart-comm
+	install -Dm644 debian/70-elksmart-ir.rules debian/elksmart-comm/usr/lib/udev/rules.d/70-elksmart-ir.rules
+	install -d debian/elksmart-comm/usr/share/doc/elksmart-comm
+	awk '/^elksmart-comm$$/{p=1} p&&/^razer-bw-te-ctl$$/{exit} p' README.adoc \
+		> debian/elksmart-comm/usr/share/doc/elksmart-comm/README.adoc
+
+override_dh_installchangelogs:
+	dh_installchangelogs NEWS

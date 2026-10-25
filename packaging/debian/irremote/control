@@ -1,0 +1,26 @@
+Source: irremote
+Section: utils
+Priority: optional
+Maintainer: Eugene Flanagin <eflanagin@pm.me>
+Build-Depends: debhelper-compat (= 13), dh-python, python3 (>= 3.11),
+ python3-pyqt6, python3-dbus, desktop-file-utils
+Standards-Version: 4.7.2
+Homepage: https://github.com/eugenesflanagin-spec/irremote
+Rules-Requires-Root: no
+
+Package: irremote
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3 (>= 3.11),
+ python3-pyqt6, python3-dbus, elksmart-comm, hicolor-icon-theme
+Recommends: libnotify-bin
+Suggests: libkf6config-bin
+Description: friendly desktop remote control for USB infrared blasters
+ IR Remote turns an ELK Smart / OCRUSTAR USB infrared blaster (045c:0132)
+ into a remote control on your desktop. Teach it the buttons of your real
+ remotes (TV, soundbar, fan, ...) once, then press them from the window, a
+ picture of your remote, the tray, a keyboard shortcut or a script.
+ .
+ The dongle itself is driven by elksmart-comm (package elksmart-comm).
+ notify-send (libnotify-bin) shows errors from keyboard-shortcut sends;
+ kwriteconfig6 (libkf6config-bin) saves KDE Plasma global shortcuts the way
+ System Settings does.

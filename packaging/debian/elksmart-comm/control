@@ -1,0 +1,23 @@
+Source: elksmart-comm
+Section: utils
+Priority: optional
+Maintainer: Eugene Flanagin <eflanagin@pm.me>
+Build-Depends: debhelper-compat (= 13), cmake, pkgconf, libusb-1.0-0-dev
+Standards-Version: 4.7.2
+Homepage: https://git.janouch.name/p/usb-drivers
+Rules-Requires-Root: no
+
+Package: elksmart-comm
+Architecture: linux-any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: command-line tool for ELK Smart / OCRUSTAR USB infrared blasters
+ elksmart-comm talks to ELK Smart infrared dongles (EKX4S, EKX5S-T, the
+ OCRUSTAR "Smart IR Blaster" 045c:0132 and relatives). It can learn codes
+ from a remote control and transmit them.
+ .
+ It is part of usb-drivers by Přemysl Eric Janouch. This package adds a small
+ patch so learning works with the 045c:0132 dongle, and a udev rule
+ (70-elksmart-ir.rules) that lets the logged-in desktop user use the dongle
+ without root.
+ .
+ IR Remote (package irremote) is a desktop front end for it.
