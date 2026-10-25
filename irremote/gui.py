@@ -704,9 +704,10 @@ class MainWindow(QMainWindow):
             self.tip.setText("Click a button to send it. Dim, dashed buttons aren't learned yet "
                              "- click one to learn it, or use <b>Learn all</b>. "
                              "Right-click for learn again, shortcut and clear.")
-            if self.canvas.layout_ is not lay and (self.canvas.layout_ or {}).get("id") != lay.get("id") \
-                    or self.canvas.remote is not r or lay.get("image"):
-                self.canvas.set_layout(lay, r)
+            key = (id(r), lay.get("id"), lay.get("image"), len(lay["buttons"]))
+            if self.canvas.layout_ is None or key != getattr(self, "_canvas_key", None):
+                self._canvas_key = key
+                self.canvas.set_layout(lay, r)      # (re)reads a photo only when it changes
             else:
                 self.canvas.set_remote(r)
             self._fill_extras(r, lay)

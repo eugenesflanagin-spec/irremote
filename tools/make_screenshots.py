@@ -35,7 +35,7 @@ def demo_data() -> dict:
          "buttons": learned("Power", "Volume Up", "Volume Down", "Mute", "Input", "Up", "Down",
                             "Left", "Right", "OK", "Back", "Home", "Netflix")},
         {"name": "Android TV box", "layout": "onn-4k-pro-google-tv",
-         "buttons": learned("Power", "Volume Up", "Volume Down", "Mute")},
+         "buttons": learned("Power")},
     ]}
 
 
@@ -57,7 +57,7 @@ def main() -> int:
         app.processEvents()
         w.grab().save(os.path.join(out, name))
         print(os.path.join(out, name))
-    # The Learn-all wizard, waiting at its first step (nothing is sent).
+    # The Learn-all wizard at its first step, Volume Up (nothing is sent).
     w.remote_list.setCurrentRow(1)
     app.processEvents()
     from irremote import layouts, visual
@@ -67,7 +67,7 @@ def main() -> int:
     dlg.resize(820, 640)
     dlg.show()
     app.processEvents()
-    dlg._show(2)
+    dlg._show(0)
     dlg.canvas._pulse = 1.5
     app.processEvents()
     path = os.path.join(out, "learn-all.png")
